@@ -1,0 +1,44 @@
+# Configuration file for project settings, dependencies management or application configuration
+# [ ] -> refers to tables/sections
+[project]  
+name = "adversarial-verification"
+version = "0.1.0"
+description = "Multi-agent adversarial verification system for LLM outputs (Generator/Critic/Coordinator over LangGraph)"
+requires-python = ">=3.11"
+dependencies = [
+    "langgraph>=0.2",
+    "anthropic>=0.40",
+    "chromadb>=0.5",
+    "sentence-transformers>=3.0",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.5",
+    "python-dotenv>=1.0",
+    "mlflow>=2.17",
+    "numpy>=1.26",
+    "tenacity>=9.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "pytest-mock>=3.14",
+    "ruff>=0.7",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

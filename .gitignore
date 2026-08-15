@@ -1,0 +1,39 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+*.egg-info/
+build/
+dist/
+.env.example
+.pytest_cache/
+
+# Vector store / model artifacts
+.chroma/
+*.index
+
+# MLflow
+mlruns/
+mlartifacts/
+
+# Eval outputs (results checked in selectively, not the raw run dumps)
+results/*.json
+!results/.gitkeep
+
+# OS / editor
+.DS_Store
+.vscode/
+*.log
+
+# ClaudeCode Metadata
+.claude/
+CLAUDE.md
+
+important.txt
+
+
+
+eval/dataset/
+
+src/adversarial_verification.egg-info/
