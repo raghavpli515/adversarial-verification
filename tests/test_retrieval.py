@@ -9,12 +9,46 @@ from verification.retrieval.corpus_loader import chunk_text
 from verification.retrieval.vector_store import ChromaRetriever
 
 
-def test_chunk_text_merges_short_paragraphs_into_one_chunk():
-    text = "Para one.\n\nPara two.\n\nPara three."
+def test_chunk_text_merges_short_sentences_within_one_paragraph():
+    # Sentences are the merge unit, not paragraphs — three short sentences in
+    # ONE paragraph should still combine into a single chunk under a
+    # generous max_chars.
+    text = "First sentence. Second sentence. Third sentence."
     chunks = chunk_text(text, source="doc.md", max_chars=1000)
     assert len(chunks) == 1
-    assert "Para one." in chunks[0].text
-    assert "Para three." in chunks[0].text
+    assert "First sentence." in chunks[0].text
+    assert "Third sentence." in chunks[0].text
+
+
+def test_chunk_text_never_merges_across_paragraph_boundaries():
+    # Paragraphs are a hard boundary — even a generous max_chars must not
+    # combine two separate source paragraphs into one chunk. This is the
+    # behavior that fixes the real bug this chunker was rewritten for: a
+    # paragraph mixing several distinct facts diluted any single fact's
+    # embedding similarity enough that the correct chunk ranked 29th out of
+    # 46 for a query it directly answered.
+    text = "Paragraph one is short.\n\nParagraph two is also short."
+    chunks = chunk_text(text, source="doc.md", max_chars=1000)
+    assert len(chunks) == 2
+    assert chunks[0].text == "Paragraph one is short."
+    assert chunks[1].text == "Paragraph two is also short."
+
+
+def test_chunk_text_splits_within_a_paragraph_when_sentences_exceed_max_chars():
+    # The actual regression case: one paragraph, multiple distinct-fact
+    # sentences that together exceed max_chars, must split into more than
+    # one chunk rather than diluting every fact into a single chunk.
+    text = (
+        'The Lunar Module was nicknamed "Aquarius." '
+        "Mission Control improvised procedures to keep the crew alive. "
+        "All three astronauts returned safely to Earth."
+    )
+    chunks = chunk_text(text, source="doc.md", max_chars=90)
+    assert len(chunks) > 1
+    assert all(len(c.text) <= 90 for c in chunks)
+    # the nickname fact must survive intact in some single chunk, not be
+    # split mid-sentence or merged away with unrelated later sentences
+    assert any('nicknamed "Aquarius."' in c.text for c in chunks)
 
 
 def test_chunk_text_splits_when_over_max_chars():

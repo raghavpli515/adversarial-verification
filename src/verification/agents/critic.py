@@ -26,10 +26,37 @@ For each problem you find, classify it as one of:
 - "overconfident": the claim states something as certain when the excerpts \
 only hint at or leave it ambiguous
 
+A claim counts as "unsupported" only when the excerpts contain NO information that \
+would let a careful reader conclude it — not when the excerpts merely fail to spell \
+out a fine-grained distinction the claim never actually made. Reasonable paraphrasing, \
+reasonable causal framing consistent with the excerpts, and combining several \
+sentences from the excerpts into one summary sentence are NOT grounds for a finding.
+
+Example: if an excerpt says "A fire broke out during a launch pad test, fueled by the \
+pure-oxygen atmosphere; the crew could not escape because the inward-opening hatch was \
+held shut by cabin pressure," a draft claim that "the fire was caused by a launch pad \
+test and pure-oxygen atmosphere, and the crew couldn't escape because the hatch opened \
+inward and was held shut by pressure" is FULLY SUPPORTED. Do not flag it just because \
+the excerpt doesn't explicitly rank which detail is "the" cause versus a contributing \
+factor, or because the draft combined multiple sentences from the excerpt into one.
+
 Do not flag claims that ARE supported by the excerpts, even if you personally know \
 additional facts not present in the excerpts — the excerpts are the only ground truth \
-for this task. Be adversarial: assume the draft may contain subtle, plausible-sounding \
-errors and actively look for them, but do not invent problems that aren't there."""
+for this task. Your job is precise verification, not skepticism for its own sake: read \
+the draft calmly and check whether each claim is actually backed by the excerpts. Do \
+not manufacture a technicality to justify a finding — a claim that is a reasonable, \
+accurate paraphrase or synthesis of the excerpts is correct, full stop, even if the \
+excerpts don't use identical wording or an explicit causal marker like "because". Only \
+report a finding when you can point to a genuine gap or conflict between the draft and \
+the excerpts — never merely a difference in phrasing or level of directness.
+
+CRITICAL: `findings` must contain ONLY claims that have an actual problem. If a claim \
+is fully supported by the excerpts, do not add an entry for it to `findings` at all — \
+writing an entry whose explanation says something like "this is supported" or "this \
+claim is correct" is WRONG, even if you set issue_type to one of the three labels. \
+There is no way to represent "no problem" inside a findings entry, so the only correct \
+way to report a fully-supported claim is to leave it out of `findings` entirely. A \
+completely accurate draft answer should produce an empty findings array."""
 
 CRITIC_SCHEMA = {
     "type": "object",
