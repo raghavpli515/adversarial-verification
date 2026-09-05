@@ -34,7 +34,7 @@ def health() -> HealthResponse:
     return HealthResponse(
         status="ok",
         corpus_chunk_count=_retriever.count(),
-        model=settings.anthropic_model,
+        model=settings.openai_model,
     )
 
 

@@ -13,16 +13,16 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    anthropic_api_key: str = ""
-    anthropic_model: str = "claude-sonnet-5"
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4o"
 
     chroma_persist_dir: str = ".chroma"
     embedding_model: str = "all-MiniLM-L6-v2"
-    retrieval_top_k: int = 4
+    retrieval_top_k: int = 12
 
     max_revision_cycles: int = 1
 
-    mlflow_tracking_uri: str = "file:./mlruns"
+    mlflow_tracking_uri: str = "sqlite:///mlflow.db"
     mlflow_experiment_name: str = "adversarial-verification"
 
 

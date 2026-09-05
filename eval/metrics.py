@@ -24,12 +24,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-# Claude Sonnet 5 pricing at time of writing: $3.00 / $15.00 per million
-# input / output tokens (see config.py ANTHROPIC_MODEL). Update these if the
-# model or pricing changes — cost figures in the eval report are only as
-# accurate as this assumption.
-INPUT_COST_PER_MTOK = 3.00
-OUTPUT_COST_PER_MTOK = 15.00
+# gpt-4o pricing at time of writing: $2.50 / $10.00 per million input /
+# output tokens (see config.py OPENAI_MODEL). This is a point-in-time
+# figure, not fetched live — verify against OpenAI's current pricing page
+# before trusting the eval report's cost numbers for anything beyond a rough
+# order-of-magnitude estimate. Update these if the model or pricing changes.
+INPUT_COST_PER_MTOK = 2.50
+OUTPUT_COST_PER_MTOK = 10.00
 
 
 def estimate_cost_usd(input_tokens: int, output_tokens: int) -> float:

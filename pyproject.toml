@@ -7,7 +7,7 @@ description = "Multi-agent adversarial verification system for LLM outputs (Gene
 requires-python = ">=3.11"
 dependencies = [
     "langgraph>=0.2",
-    "anthropic>=0.40",
+    "openai>=1.50",
     "chromadb>=0.5",
     "sentence-transformers>=3.0",
     "fastapi>=0.115",

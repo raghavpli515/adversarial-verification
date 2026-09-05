@@ -6,7 +6,7 @@ venv/
 *.egg-info/
 build/
 dist/
-.env.example
+
 .pytest_cache/
 
 # Vector store / model artifacts
@@ -16,6 +16,7 @@ dist/
 # MLflow
 mlruns/
 mlartifacts/
+mlflow.db
 
 # Eval outputs (results checked in selectively, not the raw run dumps)
 results/*.json

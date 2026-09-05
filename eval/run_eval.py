@@ -173,7 +173,7 @@ def _log_to_mlflow(summary: dict, n_items: int) -> None:
     mlflow.set_experiment(settings.mlflow_experiment_name)
 
     with mlflow.start_run():
-        mlflow.log_param("model", settings.anthropic_model)
+        mlflow.log_param("model", settings.openai_model)
         mlflow.log_param("max_revision_cycles", settings.max_revision_cycles)
         mlflow.log_param("retrieval_top_k", settings.retrieval_top_k)
         mlflow.log_param("n_items", n_items)
