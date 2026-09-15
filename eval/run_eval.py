@@ -30,6 +30,9 @@ from judge import grade  # noqa: E402
 
 from verification.agents.critic import critique_node  # noqa: E402
 from verification.graph import run_verification  # noqa: E402
+from verification.retrieval.base import Retriever  # noqa: E402
+from verification.retrieval.bm25_retriever import BM25Retriever  # noqa: E402
+from verification.retrieval.hybrid_retriever import HybridRetriever  # noqa: E402
 from verification.retrieval.vector_store import ChromaRetriever  # noqa: E402
 
 DATASET_PATH = Path(__file__).resolve().parent / "dataset" / "adversarial_prompts.jsonl"
@@ -63,7 +66,7 @@ def _latency(trace: list[dict]) -> float:
     return sum(t.get("latency_ms", 0) + t.get("verbalized_latency_ms", 0) for t in trace)
 
 
-def run_one(item: dict, retriever: ChromaRetriever) -> dict:
+def run_one(item: dict, retriever: Retriever) -> dict:
     query = item["query"]
 
     baseline_state = run_baseline(query, retriever)
@@ -210,7 +213,7 @@ def main() -> None:
     if args.limit:
         dataset = dataset[: args.limit]
 
-    retriever = ChromaRetriever()
+    retriever = HybridRetriever(dense=ChromaRetriever(), sparse=BM25Retriever())
     if retriever.count() == 0:
         print("WARNING: Chroma index is empty. Run `python scripts/build_index.py` first.")
 

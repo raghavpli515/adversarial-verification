@@ -15,6 +15,8 @@ from fastapi import FastAPI, HTTPException
 from api.schemas import HealthResponse, RetrievedSource, VerifyRequest, VerifyResponse
 from verification.config import settings
 from verification.graph import run_verification
+from verification.retrieval.bm25_retriever import BM25Retriever
+from verification.retrieval.hybrid_retriever import HybridRetriever
 from verification.retrieval.vector_store import ChromaRetriever
 
 app = FastAPI(
@@ -26,7 +28,11 @@ app = FastAPI(
     version="0.1.0",
 )
 
-_retriever = ChromaRetriever()
+# Hybrid = dense (ChromaRetriever) + sparse (BM25Retriever) fused via RRF —
+# see hybrid_retriever.py for why neither one alone is enough. BM25Retriever
+# builds its in-memory index eagerly here too, same lifecycle as the dense
+# embedding model: once at import time, not per-request.
+_retriever = HybridRetriever(dense=ChromaRetriever(), sparse=BM25Retriever())
 
 
 @app.get("/health", response_model=HealthResponse)

@@ -1,10 +1,11 @@
-"""Tests for the retrieval layer: chunking is pure and fully offline; the
-Chroma round trip is real but needs no Anthropic API key, since embeddings
-are computed locally via sentence-transformers.
+"""Tests for the retrieval layer: chunking and BM25 are pure and fully
+offline; the Chroma round trip is real but needs no API key, since
+embeddings are computed locally via sentence-transformers.
 """
 
 from __future__ import annotations
 
+from verification.retrieval.bm25_retriever import BM25Retriever
 from verification.retrieval.corpus_loader import chunk_text
 from verification.retrieval.vector_store import ChromaRetriever
 
@@ -65,6 +66,51 @@ def test_chunk_ids_are_unique_and_source_scoped():
     ids = [c.chunk_id for c in chunks]
     assert len(ids) == len(set(ids))
     assert all(cid.startswith("doc::") for cid in ids)
+
+
+def test_chunk_text_extracts_header_as_title_and_drops_it_as_a_chunk():
+    # The regression case for the BM25/hybrid retrieval bug: a sentence deep
+    # in a document ("...the crew...") often never restates the document's
+    # subject, which BM25 can't infer from context the way dense embeddings
+    # can. The header's title is prepended to every chunk instead of being
+    # dropped or kept as a chunk of its own.
+    text = "# Apollo 13\n\nThe crew used the Lunar Module as a lifeboat."
+    chunks = chunk_text(text, source="apollo_13.md")
+    assert len(chunks) == 1  # header contributes no chunk of its own
+    assert chunks[0].text == "Apollo 13: The crew used the Lunar Module as a lifeboat."
+
+
+def test_chunk_text_title_prefix_applies_to_every_chunk_in_the_document():
+    text = "# Apollo 13\n\nFirst fact.\n\nSecond fact."
+    chunks = chunk_text(text, source="apollo_13.md")
+    assert len(chunks) == 2
+    assert all(c.text.startswith("Apollo 13: ") for c in chunks)
+
+
+def test_chunk_text_without_a_header_has_no_title_prefix():
+    # Backward-compatible: text with no leading "# Title" paragraph chunks
+    # exactly as before, no prefix invented from nothing.
+    text = "Just a plain paragraph, no header."
+    chunks = chunk_text(text, source="doc.md")
+    assert chunks[0].text == "Just a plain paragraph, no header."
+
+
+def test_bm25_retriever_finds_exact_term_match(tmp_path):
+    corpus_dir = tmp_path / "corpus"
+    corpus_dir.mkdir()
+    (corpus_dir / "a.md").write_text(
+        "# Doc A\n\nThe Lunar Module was nicknamed Aquarius.", encoding="utf-8"
+    )
+    (corpus_dir / "b.md").write_text(
+        "# Doc B\n\nThe Command Module was nicknamed Odyssey.", encoding="utf-8"
+    )
+
+    retriever = BM25Retriever(corpus_dir=corpus_dir)
+    assert retriever.count() == 2
+
+    results = retriever.query("Aquarius", top_k=1)
+    assert len(results) == 1
+    assert results[0]["source"] == "a.md"
 
 
 def test_chroma_retriever_round_trip(tmp_path):

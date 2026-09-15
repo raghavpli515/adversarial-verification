@@ -37,16 +37,29 @@ particular gap costs an odd chunk boundary, not lost information. A robust
 NLP sentence tokenizer is stretch-goal territory for a ~20-document
 hand-authored corpus.
 
-Markdown header paragraphs (e.g. "# Apollo 13") are dropped entirely before
-chunking, not just left small. Every document in this corpus opens with one,
-and since sentence-level chunking makes each its own tiny chunk, ~20 nearly
-identical bare-title chunks ("# Apollo 11", "# Apollo 12", ...) cluster
-together in embedding space and can crowd every substantive chunk in a
-document out of the top-k — this was observed directly: a query about Apollo
-1 retrieved ten other missions' bare headers and zero Apollo 1 content
-chunks. Dropping them costs nothing, since the mission name is always
-restated in the first sentence of the body text anyway (and the citation
-already carries the source filename).
+Markdown header paragraphs (e.g. "# Apollo 13") are never kept as their own
+chunk. Every document in this corpus opens with one, and since sentence-level
+chunking makes each its own tiny chunk, ~20 nearly identical bare-title
+chunks ("# Apollo 11", "# Apollo 12", ...) cluster together in embedding
+space and can crowd every substantive chunk in a document out of the top-k —
+observed directly: a query about Apollo 1 retrieved ten other missions'
+bare headers and zero Apollo 1 content chunks.
+
+An earlier version of this fix just dropped the header text entirely, which
+turned out to be too aggressive: sentence-level chunking means a sentence
+like "The crew used the Lunar Module, nicknamed 'Aquarius'..." often never
+mentions "Apollo 13" itself — that context was established several
+sentences earlier, before the paragraph got split apart. Dense embeddings
+can still infer relevance from surrounding vocabulary even without the
+literal mission number, but BM25 (see bm25_retriever.py) does pure exact-
+term matching and has no such ability — measured directly, that exact chunk
+ranked 11th of 133 for dense retrieval but 44th for BM25, and combining the
+two via RRF fusion dragged the fused rank below the retrieval cutoff
+entirely, which is worse than dense alone. So the header's title is instead
+extracted and prepended to every other chunk from that document ("Apollo
+13: The crew used the Lunar Module..."), giving BM25 the entity term it
+needs without resurrecting the header-flooding bug — the title never
+becomes a retrievable chunk on its own.
 """
 
 from __future__ import annotations
@@ -87,11 +100,20 @@ def _split_sentences(paragraph: str) -> list[str]:
 
 
 def chunk_text(text: str, source: str, max_chars: int = 300) -> list[RawChunk]:
-    paragraphs = [
-        p.strip()
-        for p in text.split("\n\n")
-        if p.strip() and not _HEADER_ONLY.fullmatch(p.strip())
-    ]
+    raw_paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
+
+    # The first header-only paragraph becomes the document's title, prepended
+    # to every other chunk below — see the module docstring for why. Any
+    # header-only paragraph (first or otherwise) is excluded from the body,
+    # so it never becomes a chunk of its own.
+    title: str | None = None
+    paragraphs: list[str] = []
+    for p in raw_paragraphs:
+        if _HEADER_ONLY.fullmatch(p):
+            if title is None:
+                title = re.sub(r"^#{1,6}\s+", "", p).strip()
+            continue
+        paragraphs.append(p)
 
     chunks: list[RawChunk] = []
     for para in paragraphs:
@@ -99,18 +121,19 @@ def chunk_text(text: str, source: str, max_chars: int = 300) -> list[RawChunk]:
         for sentence in _split_sentences(para):
             candidate = f"{buffer} {sentence}" if buffer else sentence
             if len(candidate) > max_chars and buffer:
-                chunks.append(_make_chunk(buffer, source, len(chunks)))
+                chunks.append(_make_chunk(buffer, source, len(chunks), title))
                 buffer = sentence
             else:
                 buffer = candidate
         if buffer:
-            chunks.append(_make_chunk(buffer, source, len(chunks)))
+            chunks.append(_make_chunk(buffer, source, len(chunks), title))
     return chunks
 
 
-def _make_chunk(text: str, source: str, index: int) -> RawChunk:
+def _make_chunk(text: str, source: str, index: int, title: str | None = None) -> RawChunk:
     stem = Path(source).stem
-    return RawChunk(chunk_id=f"{stem}::{index}", text=text, source=source)
+    full_text = f"{title}: {text}" if title else text
+    return RawChunk(chunk_id=f"{stem}::{index}", text=full_text, source=source)
 
 
 def load_corpus_dir(corpus_dir: str | Path) -> list[RawChunk]:
