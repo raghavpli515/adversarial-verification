@@ -68,7 +68,12 @@ def get_verbalized_confidence(state: VerificationState) -> tuple[float, dict]:
     return confidence, usage
 
 
-def get_engineered_confidence(state: VerificationState) -> float:
+def get_engineered_confidence_components(state: VerificationState) -> dict:
+    """Same computation as `get_engineered_confidence`, with the three
+    sub-scores exposed individually — purely for diagnostics (e.g. checking
+    which term is responsible for a calibration shift), never for changing
+    what the formula computes. `get_engineered_confidence` is a thin wrapper
+    around this so the two can never drift apart."""
     chunks = state.get("retrieved_chunks", [])
     citations = set(state.get("generator_citations", []))
     cited_scores = [c["score"] for c in chunks if c["chunk_id"] in citations]
@@ -93,5 +98,14 @@ def get_engineered_confidence(state: VerificationState) -> float:
     # answer came back clean.
     revision_penalty = 0.1 if state.get("revision_count", 0) > 0 else 0.0
 
-    score = 0.5 * retrieval_component + 0.5 * critic_component - revision_penalty
-    return max(0.0, min(1.0, score))
+    score = max(0.0, min(1.0, 0.5 * retrieval_component + 0.5 * critic_component - revision_penalty))
+    return {
+        "retrieval_component": retrieval_component,
+        "critic_component": critic_component,
+        "revision_penalty": revision_penalty,
+        "score": score,
+    }
+
+
+def get_engineered_confidence(state: VerificationState) -> float:
+    return get_engineered_confidence_components(state)["score"]

@@ -29,6 +29,7 @@ from baseline import run_baseline  # noqa: E402
 from judge import grade  # noqa: E402
 
 from verification.agents.critic import critique_node  # noqa: E402
+from verification.confidence import get_engineered_confidence_components  # noqa: E402
 from verification.graph import run_verification  # noqa: E402
 from verification.retrieval.base import Retriever  # noqa: E402
 from verification.retrieval.bm25_retriever import BM25Retriever  # noqa: E402
@@ -97,6 +98,12 @@ def run_one(item: dict, retriever: Retriever) -> dict:
     b_in, b_out = _tokens(baseline_state["trace"])
     p_in, p_out = _tokens(pipeline_state["trace"])
 
+    # Diagnostic only — recomputed from state that's already there, no extra
+    # LLM calls. Lets a run's output show WHICH term in the engineered
+    # confidence formula is driving a calibration shift, instead of just the
+    # final blended score.
+    engineered_components = get_engineered_confidence_components(pipeline_state)
+
     return {
         "id": item["id"],
         "category": item["category"],
@@ -119,6 +126,9 @@ def run_one(item: dict, retriever: Retriever) -> dict:
         "pipeline_status": pipeline_state["final_status"],
         "pipeline_confidence_verbalized": pipeline_state["confidence_verbalized"],
         "pipeline_confidence_engineered": pipeline_state["confidence_engineered"],
+        "pipeline_retrieval_component": engineered_components["retrieval_component"],
+        "pipeline_critic_component": engineered_components["critic_component"],
+        "pipeline_revision_penalty": engineered_components["revision_penalty"],
         "pipeline_correct": pipeline_judge["correct"],
         "pipeline_status_correct": pipeline_judge["status_correct"],
         "pipeline_grading_findings": pipeline_grading["findings"],
