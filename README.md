@@ -4,7 +4,7 @@ A multi-agent system that verifies its own answers before returning them, instea
 
 Built as a companion piece to a [multimodal trust-aware behavioral intelligence system](#) — the shared thread across both is **measurable reliability**, not just "the model works on my examples."
 
-> **Status:** MVP complete. Eval numbers below are real, from three independent runs of the full 50-prompt set against `gpt-4o` — see [Results](#results) for the numbers and [Limitations](#limitations) for what they don't show.
+> **Status:** MVP complete, including hybrid (dense + BM25) retrieval. Eval numbers below are real, from two batches of three independent 50-prompt runs each against `gpt-4o` — dense-only retrieval, then hybrid retrieval — see [Results](#results) for the full before/after comparison and [Limitations](#limitations) for what they don't show.
 
 ---
 
@@ -25,7 +25,7 @@ This project builds a verification loop that adversarially checks a draft answer
    ▼
 ┌─────────────┐     retrieved chunks     ┌───────────┐
 │  Retriever   │ ────────────────────────▶│ Generator │
-│  (Chroma)    │                          └─────┬─────┘
+│  (Hybrid)    │                          └─────┬─────┘
 └─────────────┘                                 │ draft answer + citations
                                                  ▼
                                            ┌───────────┐
@@ -45,6 +45,8 @@ This project builds a verification loop that adversarially checks a draft answer
                                     final answer   "insufficient evidence"
                                     + confidence
 ```
+
+**Retrieval is hybrid, not dense-only.** `HybridRetriever` fuses `ChromaRetriever` (dense, sentence-transformer embeddings) with `BM25Retriever` (sparse, exact term matching) via Reciprocal Rank Fusion — see `src/verification/retrieval/hybrid_retriever.py` for why RRF rather than a weighted score sum, and [Results](#results) for the accuracy/calibration tradeoff this produced measurably, not just in theory.
 
 The Generator and Critic never talk directly — everything routes through shared graph state, and the Coordinator is the only node that decides control flow (accept / send back for one revision / escalate to "insufficient evidence"). This is deliberately not "three agents chatting" — the Coordinator's decision is a hybrid of deterministic rules (finding counts, retrieval quality) and one LLM judgment call, not another unconstrained LLM conversation. See `src/verification/agents/coordinator.py` for the exact logic.
 
@@ -76,30 +78,33 @@ Metrics tracked per run (see `eval/metrics.py`), logged to MLflow per run for re
 
 ## Results
 
-The 50-prompt eval was run **three independent times** against `gpt-4o` (raw run output in `results/`). Repeated runs turned out to matter: an earlier pass on `gpt-4o-mini` showed pipeline accuracy swinging from 44% to 60% between otherwise-identical runs — noise large enough that a single run isn't a trustworthy number for this kind of eval. Numbers below are the mean across the three `gpt-4o` runs, with the per-run range shown so the reader can judge stability directly instead of trusting one point estimate.
+Two batches of three independent 50-prompt runs exist against `gpt-4o` (raw run output in `results/`): the original dense-only retrieval baseline, and a second batch after replacing dense-only retrieval with hybrid dense+BM25 retrieval (see Architecture). Repeated runs turned out to matter for both batches: an earlier pass on `gpt-4o-mini` showed pipeline accuracy swinging from 44% to 60% between otherwise-identical runs — noise large enough that a single run is never a trustworthy number for this kind of eval. Numbers below are the mean across each batch's three runs, with the per-run range shown so stability is visible rather than assumed.
 
-| Metric | Baseline (Generator only) | Pipeline (Generator + Critic + Coordinator) |
+| Metric | Dense-only retrieval (3-run) | Hybrid retrieval (3-run) |
 |---|---|---|
-| Accuracy | 0.787 (0.76 – 0.82) | 0.767 (0.74 – 0.78) |
-| Unsupported-claim rate | 0.053 (0.04 – 0.06) | 0.040 (0.02 – 0.06) |
-| False-escalation rate | n/a | 0.027 (0.00 – 0.054) |
-| ECE, verbalized confidence | — | 0.199 (0.159 – 0.239) |
-| ECE, engineered confidence | — | **0.064 (0.050 – 0.088)** |
-| Mean latency / query | 2.85s | 4.77s (~1.7x) |
-| Mean cost / query | $0.0034 | $0.0077 (~2.3x) |
+| Baseline accuracy | 0.787 (0.76 – 0.82) | 0.880 (0.86 – 0.90) |
+| Pipeline accuracy | 0.767 (0.74 – 0.78) | 0.867 (0.84 – 0.88) |
+| Unsupported-claim rate (pipeline) | 0.040 (0.02 – 0.06) | 0.007 (0.00 – 0.02) |
+| False-escalation rate | 0.027 (0.00 – 0.054) | 0.027 (identical in all 3 runs) |
+| ECE, verbalized confidence | 0.199 (0.159 – 0.239) | 0.114 (0.088 – 0.149) |
+| ECE, engineered confidence | **0.064 (0.050 – 0.088)** | 0.107 (0.071 – 0.127) |
+| Mean latency / query (pipeline) | 4.77s | 5.87s |
+| Mean cost / query (pipeline) | $0.0077 | $0.0076 |
 
 **What this actually shows, stated plainly:**
 
-- **Calibration is the real, reproducible result.** Engineered confidence holds an ECE of roughly 0.05–0.09 across all three independent runs; naive verbalized confidence (the Coordinator just self-reporting a number) is both worse *and* markedly less stable (0.16–0.24). A ~3x calibration improvement that survives three independent runs is a meaningfully stronger claim than a single favorable number would be.
-- **The verification loop does not clearly improve raw accuracy.** Averaged across three runs, pipeline accuracy (76.7%) is marginally *below* the single-pass baseline (78.7%). This is reported without spin: the honest finding is that this architecture's value, at this scale, is in the confidence signal it produces, not in making the underlying answers more correct.
-- **False escalation is low** (0–5.4% across runs) — the system rarely says "insufficient evidence" on a question the corpus could actually answer.
-- **The critic loop costs a real, quantified overhead** (~2.3x cost, ~1.7x latency) for that calibration benefit — worth weighing against the alternative of shipping the naive verbalized-confidence number for free.
+- **Hybrid retrieval measurably improved accuracy and hallucination rate, consistently across all three runs.** Pipeline accuracy rose from 76.7% to 86.7%, baseline accuracy from 78.7% to 88.0%, and the unsupported-claim rate dropped from 4.0% to 0.7%. This tracks the documented mechanism: BM25 rescues chunks dense embeddings under-rank (see `corpus_loader.py`'s module docstring for the specific case), so the generator has better evidence to work with more often.
+- **The calibration advantage — this project's original headline result — got weaker, and more importantly, unstable.** Engineered confidence's edge over naive verbalized confidence shrank from a clean 3x (0.064 vs 0.199, ranges never overlapping across three runs) to a near-tie (0.107 vs 0.114) that doesn't even hold direction consistently: engineered confidence lost to verbalized in two of the three hybrid-retrieval runs, then won clearly in the third. "Engineered confidence is reliably better calibrated" is no longer a claim these numbers support as cleanly as the dense-only batch did.
+- **The root cause is diagnosed, not just observed.** Instrumenting the confidence formula directly (`get_engineered_confidence_components()`) showed that the critic-loop's finding rate collapsed to near-zero under hybrid retrieval (matching the unsupported-claim rate dropping to 0.7%), which pins `critic_component` at a near-constant 1.0 across most items — removing half of the formula's designed discriminative signal and leaving it dependent on `retrieval_component` alone, a single, noisier signal. See [Limitations](#limitations) for the full mechanism, including a distinct failure mode (unaddressed false premises in leading questions) the critic was never designed to catch.
+- **Net assessment: a real tradeoff, not a strict improvement.** Hybrid retrieval is the better choice for this system's stated goal — reducing hallucination and improving raw correctness — at the cost of the calibration story that originally motivated building a separate engineered-confidence signal in the first place. Both halves of that tradeoff are reported here, not just the flattering one.
+- **False-escalation rate stayed low and, unusually, landed on the exact same value in all three hybrid-retrieval runs** (2.7%) — the system still rarely says "insufficient evidence" on a question the corpus could actually answer.
+- **Cost/latency overhead is comparable to the dense-only batch** (~1.5x latency, ~2.2x cost over baseline) — the extra local BM25 pass adds negligible cost; the LLM call overhead dominates either way.
 
-An earlier, more severe failure mode is also part of the honest story here, not hidden from it: three real bugs were found and fixed over the course of this eval (a critic prompt that produced self-contradictory findings on `gpt-4o-mini`; a chunking scheme where topically-broad chunks diluted individual facts in embedding space, observed directly as a chunk ranking 29th of 46 for a query it answered; and markdown header lines becoming their own near-duplicate chunks that flooded retrieval with noise). All three are described with reproduction details in the commit history and code comments — the eval harness is what surfaced each one.
+An earlier, more severe failure mode is also part of the honest story here, not hidden from it: multiple real bugs were found and fixed across both phases of this eval — a critic prompt that produced self-contradictory findings on `gpt-4o-mini`; a chunking scheme where topically-broad chunks diluted individual facts in embedding space (a chunk ranking 29th of 46 for a query it directly answered); markdown header lines flooding retrieval with near-duplicate chunks; and, during hybrid retrieval development, a chunking scheme that stripped document-level context BM25 needs, plus a score-fusion bug that briefly regressed calibration to worse than the naive baseline (ECE 0.233) before being caught and fixed. All are described with reproduction details in the commit history, code comments, and [Limitations](#limitations) — the eval harness is what surfaced every one of them.
 
 ## Limitations
 
-- **The verification loop does not clearly improve raw accuracy at this scale.** Averaged across three runs, pipeline accuracy (76.7%) is marginally below single-pass baseline (78.7%) — see [Results](#results). The measured benefit of this architecture is calibration, not correctness, and that's a real constraint on how far the headline claim generalizes.
+- **The verification loop does not clearly improve raw accuracy at this scale.** Averaged across three runs, pipeline accuracy (86.7% with hybrid retrieval, 76.7% with dense-only) is marginally below single-pass baseline in both cases (88.0% and 78.7% respectively) — see [Results](#results). The measured benefit of this architecture is in the confidence/hallucination signals it produces, not in making the underlying answers more correct, and that's a real constraint on how far the headline claim generalizes.
 - **Small eval set.** 50 prompts split across four categories means roughly 12–13 items per category — enough to catch large, systematic failures (which is how the critic self-contradiction and retrieval-dilution bugs below were actually found), but too few for tight confidence intervals on any single metric. The three-run range reported alongside each number is a partial mitigation, not a substitute for a larger set.
 - **The critic loop's reliability is sensitive to the underlying model, not just the prompt.** `gpt-4o-mini` showed real reasoning instability as the Critic — self-contradictory findings, and factually incorrect claims that evidence only "implies" a fact the evidence states outright with "because." Two rounds of targeted prompt engineering (an explicit definition of "unsupported" plus a worked example; removing "be adversarial, actively look for problems" framing) measurably reduced this but didn't eliminate it, and it's what motivated the move to `gpt-4o`. The architecture's trustworthiness claim is therefore conditional on the critic model being capable enough — a critic loop doesn't make an unreliable model reliable for free.
 - **Retrieval quality was more fragile to chunking granularity than expected**, even on a ~20-document corpus. Two distinct bugs were found and fixed during this eval: topically-broad chunks diluting a specific fact's embedding similarity enough that the correct chunk ranked 29th of 46 for a query it directly answered, and bare markdown header lines becoming their own near-duplicate chunks that flooded top-k results with noise across every document. Both are fixed here, but the underlying lesson — dense single-vector embedding retrieval over hand-authored chunks is more sensitive to structural details than it looks — would need re-validating on a larger or messier corpus, not assumed away.
@@ -143,7 +148,7 @@ src/verification/
   graph.py                                   LangGraph StateGraph wiring
   state.py                                   shared graph state schema
   confidence.py                              verbalized + engineered confidence, ECE
-  retrieval/{base,vector_store,corpus_loader}.py
+  retrieval/{base,vector_store,bm25_retriever,hybrid_retriever,corpus_loader}.py
 src/api/                                     FastAPI app
 eval/
   dataset/{adversarial_prompts.jsonl,corpus/}
