@@ -4,6 +4,8 @@ A multi-agent system that verifies its own answers before returning them, instea
 
 Built as a companion piece to a [multimodal trust-aware behavioral intelligence system](#) — the shared thread across both is **measurable reliability**, not just "the model works on my examples."
 
+🎥 **[Watch a demo walkthrough](https://youtu.be/bDHBv1_jPOI)** — Generator → Critic → Coordinator in action, critic findings, and both confidence signals side by side.
+
 > **Status:** MVP complete, including hybrid (dense + BM25) retrieval. Eval numbers below are real, from two batches of three independent 50-prompt runs each against `gpt-4o` — dense-only retrieval, then hybrid retrieval — see [Results](#results) for the full before/after comparison and [Limitations](#limitations) for what they don't show.
 
 ---
