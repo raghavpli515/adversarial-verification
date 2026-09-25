@@ -140,6 +140,15 @@ docker build -t adversarial-verification .
 docker run -p 8000:8000 --env-file .env adversarial-verification
 ```
 
+Streamlit demo (visual walkthrough of the Generator → Critic → Coordinator flow, critic findings, and both confidence signals side by side — calls the pipeline directly, not through the API, so no separate `uvicorn` process is needed):
+
+```bash
+pip install -e ".[demo]"
+streamlit run demo/app.py
+```
+
+Intentionally local-only, not publicly deployed — every query is a real, billed OpenAI API call, and a public link would mean unmetered public access to that.
+
 ## Repo structure
 
 ```

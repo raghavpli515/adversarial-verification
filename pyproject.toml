@@ -28,6 +28,9 @@ dev = [
     "pytest-mock>=3.14",
     "ruff>=0.7",
 ]
+demo = [
+    "streamlit>=1.38",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

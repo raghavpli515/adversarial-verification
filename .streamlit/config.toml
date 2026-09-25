@@ -1,0 +1,12 @@
+# Black + orange theme for the Streamlit demo, matching design tokens
+# pulled directly from mistral.ai's published CSS (steel-950/900 dark
+# surfaces, orange-600, near-white text) — not their proprietary font or
+# any logo/branding, just the color language. See demo/app.py for the rest
+# of the styling.
+[theme]
+base = "dark"
+primaryColor = "#FA500F"
+backgroundColor = "#101013"
+secondaryBackgroundColor = "#1A1A1E"
+textColor = "#F9F9FA"
+font = "sans serif"
