@@ -16,8 +16,8 @@ Decision rules (see `_decide`):
 
 from __future__ import annotations
 
-from verification.config import settings
 from verification.confidence import get_engineered_confidence, get_verbalized_confidence
+from verification.config import settings
 from verification.state import CoordinatorDecision, VerificationState
 
 INSUFFICIENT_EVIDENCE_MESSAGE = (

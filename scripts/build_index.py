@@ -11,8 +11,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from verification.retrieval.corpus_loader import load_corpus_dir  # noqa: E402
-from verification.retrieval.vector_store import ChromaRetriever  # noqa: E402
+from verification.retrieval.corpus_loader import load_corpus_dir
+from verification.retrieval.vector_store import ChromaRetriever
 
 CORPUS_DIR = Path(__file__).resolve().parents[1] / "eval" / "dataset" / "corpus"
 
