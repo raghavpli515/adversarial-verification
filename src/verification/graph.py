@@ -8,29 +8,15 @@ Graph shape:
                                              v
                                             END
 
-Design notes:
-
-- Retrieval runs exactly once per query, not once per revision. A revision
-  cycle asks the Generator to produce a *better* answer from the *same*
-  evidence — it's the answer that was wrong, not the evidence that changed.
-  Re-retrieving on every revision would also make it impossible to tell
-  whether a revision helped, since the Critic would be checking against a
-  moving target.
-
-- The conditional edge out of `coordinate` is the entire reason this is a
-  graph and not a linear chain: `coordinate` can route back to `generate`
-  (a cycle) or forward to `END`, and that choice is made from state at
-  runtime, not fixed at graph-construction time. LangGraph implements this
-  via `add_conditional_edges`, which takes a routing function that reads the
-  state and returns the name of the next node (or the special `END` marker).
-
-- Two independent loop guards exist and answer different questions:
-  `settings.max_revision_cycles` (enforced inside `coordinator.py`) is the
-  intentional business-logic cap — "how many times should we let the
-  generator try again before giving up." `recursion_limit`, passed to
-  `graph.invoke(..., config=...)` below, is a hard backstop against the
-  graph looping more than expected at all, e.g. from a bug in the routing
-  function — it protects the process, not the answer-quality/cost tradeoff.
+Retrieval runs once per query, not once per revision — a revision asks the
+Generator for a *better* answer from the *same* evidence, not new evidence,
+and re-retrieving would make it impossible to tell whether the revision
+itself helped. The conditional edge out of `coordinate`
+(`add_conditional_edges`, routing on state at runtime) is why this is a
+graph rather than a linear chain. Two independent loop guards exist:
+`settings.max_revision_cycles` is the intentional business-logic cap on
+revision attempts; `recursion_limit` below is a hard backstop against the
+graph looping more than expected at all, e.g. from a routing bug.
 """
 
 from __future__ import annotations

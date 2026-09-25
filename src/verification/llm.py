@@ -1,25 +1,17 @@
 """Thin wrapper around the OpenAI client, shared by all three agents.
 
-Centralizing API calls here means:
-  - every agent gets the same model/timeout defaults from config.py
-  - the eval harness can measure latency and token usage uniformly, since
-    every call returns them alongside its result
-  - tests can monkeypatch `get_client()` to inject a fake client instead of
-    patching each agent module individually
-  - swapping the underlying provider (this file went from Anthropic to
-    OpenAI) only touches this one module — every agent, the graph, and all
-    tests depend on `StructuredCallResult`/`TextCallResult`, never on the
-    provider SDK directly.
+Centralizing API calls here means uniform latency/token tracking for the
+eval harness, a single point for tests to monkeypatch `get_client()`, and
+a provider swap (this file went from Anthropic to OpenAI) touching only
+this module — every agent depends on `StructuredCallResult`/`TextCallResult`,
+never the provider SDK directly.
 
-Uses the Responses API (`client.responses.create`), not the older Chat
-Completions API — OpenAI's current docs explicitly recommend Responses for
-new projects. Structured outputs go through `text.format` with a strict
-JSON schema (verified against the openai-python SDK source directly, not
-guessed: `strict` is a sibling of `type` inside `format`, not nested under
-a `json_schema` key the way Chat Completions shapes it). Strict mode
-requires every object in the schema to set `"additionalProperties": false`
-and list every property as required — all of this project's schemas
-(generator/critic/confidence/judge) already meet that bar.
+Uses the Responses API (`client.responses.create`), not Chat Completions —
+OpenAI's current docs recommend Responses for new projects. Structured
+outputs go through `text.format` with a strict JSON schema (`strict` sits
+alongside `type` inside `format`, verified against the SDK source directly
+rather than guessed); strict mode requires every schema object to set
+`"additionalProperties": false` and list every property as required.
 """
 
 from __future__ import annotations

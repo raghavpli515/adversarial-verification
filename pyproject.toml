@@ -1,6 +1,4 @@
-# Configuration file for project settings, dependencies management or application configuration
-# [ ] -> refers to tables/sections
-[project]  
+[project]
 name = "adversarial-verification"
 version = "0.1.0"
 description = "Multi-agent adversarial verification system for LLM outputs (Generator/Critic/Coordinator over LangGraph)"

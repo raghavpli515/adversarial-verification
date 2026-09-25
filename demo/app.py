@@ -1,24 +1,13 @@
 """Streamlit demo for the adversarial verification pipeline.
 
 Calls `verification.graph.run_verification` directly — the same function
-the FastAPI service and the eval harness both call — rather than going
-through the HTTP API. That's a deliberate choice, not a shortcut: it gives
-the demo access to the full pipeline state (critic findings, coordinator
-decision, revision count) that `VerifyResponse` doesn't expose, without
-needing a separate `uvicorn` process running alongside Streamlit.
+the API and eval harness use — rather than through the HTTP API, since it
+gives access to state (critic findings, coordinator decision) that
+`VerifyResponse` doesn't expose, with no separate `uvicorn` process needed.
 
-Styling: a black + orange palette, with color tokens pulled directly from
-mistral.ai's published CSS (steel-950/900 dark surfaces #101013/#1A1A1E,
-orange-600 #FA500F, near-white text #F9F9FA) — not their proprietary
-ALTMistral font or any logo/branding, just the color language,
-approximated here with Inter at heavy weights for headings. See
-.streamlit/config.toml for the base
-theme; the CSS block below reaches details the theme config can't (pill
-buttons, card borders) via Streamlit's documented `data-testid` hooks —
-those are the intentionally-stable styling API, unlike its internal
-generated class names, though exact hook names can still shift between
-Streamlit versions; a mismatched selector just fails to style that one
-element rather than breaking anything.
+Styling is a black + orange palette using color tokens pulled from
+mistral.ai's published CSS (not their proprietary font or branding, just
+the palette) — see `.streamlit/config.toml` for the base theme.
 
 Run with: streamlit run demo/app.py
 (after `python scripts/build_index.py` has built the Chroma index at least once)

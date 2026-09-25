@@ -1,26 +1,15 @@
-"""Two confidence signals, deliberately computed two different ways, so the
-eval harness can compare them:
+"""Two confidence signals, computed two different ways so the eval harness
+can compare them: `get_verbalized_confidence` asks the LLM to self-report a
+0-1 number (the naive baseline); `get_engineered_confidence` is a
+hand-tuned formula over signals the system can observe directly —
+retrieval score, critic finding count, revision history — with no
+self-reported number involved. Both are scored against the LLM-judge's
+correctness label via Expected Calibration Error (see `eval/metrics.py`).
 
-1. `get_verbalized_confidence` — just ask the LLM to self-report a 0-1
-   number. This is the naive baseline. Verbalized confidence is known in
-   the literature to correlate poorly with actual correctness (models tend
-   to sound confident regardless of whether they're right), and one of this
-   project's eval results is measuring exactly how poorly, on this system.
-
-2. `get_engineered_confidence` — a hand-tuned formula over signals the
-   *system* can observe directly, without asking the model to introspect:
-   how well-matched the cited evidence was, how many problems the Critic
-   found relative to total claims, and whether a revision was needed at
-   all. Nothing here asks "how sure are you" — everything here is either
-   a retrieval score or a count.
-
-Both get logged to `VerificationState` (`confidence_verbalized`,
-`confidence_engineered`) and both get scored against the LLM-judge's
-correctness label in `eval/metrics.py` via Expected Calibration Error (ECE).
-The claim in the README ("naive confidence is poorly calibrated, ours is
-better") is only honest if this formula was written *before* looking at
-eval results and tuned by held-out testing — not reverse-engineered from
-the eval set after the fact. Keep it that way when iterating.
+The README's calibration claim is only honest if this formula was written
+*before* looking at eval results and tuned by held-out testing, not
+reverse-engineered from the eval set after the fact — keep it that way
+when iterating.
 """
 
 from __future__ import annotations

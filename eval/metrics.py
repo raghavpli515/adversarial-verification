@@ -1,23 +1,14 @@
 """Metrics computed from eval run records.
 
-Two design choices worth being able to defend in an interview:
-
-1. Unsupported-claim rate is measured with an INDEPENDENT grading pass —
-   `run_eval.py` calls the Critic's own `critique_node` function directly
-   against whatever final answer a system produced (baseline or pipeline),
-   after the fact, purely for measurement. It deliberately does NOT read
-   the pipeline's internal `critic_report` from the graph run. If it did,
-   "accept" decisions would trivially show zero unsupported claims by
-   construction — that's *why* they were accepted — and the metric would
-   be circular (the pipeline grading itself as passing its own test).
-   Grading both baseline and pipeline answers with the identical external
-   critic call is what makes the comparison fair.
-
-2. ECE is computed only over items the pipeline actually answered, not
-   escalated. "Insufficient evidence" isn't a claim with a truth value to
-   calibrate confidence against in the same sense an answer is — mixing the
-   two would conflate "how sure are you this answer is right" with "how
-   sure are you evidence is missing."
+Two design choices worth being able to defend: unsupported-claim rate uses
+an INDEPENDENT grading pass — `run_eval.py` calls the Critic's
+`critique_node` directly against the final answer, after the fact, rather
+than reading the pipeline's internal `critic_report` — reading the internal
+report would make "accept" decisions trivially show zero unsupported
+claims by construction, a circular metric. And ECE is computed only over
+items the pipeline actually answered, not escalated — "insufficient
+evidence" has no truth value to calibrate confidence against the way an
+answer does, so mixing the two would conflate two different questions.
 """
 
 from __future__ import annotations

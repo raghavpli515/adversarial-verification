@@ -1,22 +1,17 @@
 """Coordinator agent: arbitrates between the Generator's draft and the
 Critic's findings.
 
-This is deliberately NOT another open-ended LLM conversation. The
-accept/revise/escalate decision is pure rule-based logic over the Critic's
-finding count and the revision budget — deterministic and auditable, the
-same input always produces the same routing decision. The one LLM call the
-Coordinator makes is reserved for something that genuinely needs judgment
-and can't be reduced to a rule: self-reported confidence (used only as the
-"naive baseline" the eval compares against the engineered score — see
-confidence.py). That split is the answer to "why is a Coordinator different
-from just chaining three prompts."
+Deliberately NOT another open-ended LLM conversation — accept/revise/escalate
+is pure rule-based logic over the Critic's finding count and the revision
+budget (deterministic, auditable). The one LLM call here is reserved for
+something that needs judgment: self-reported confidence, used only as the
+naive baseline the eval compares against the engineered score (`confidence.py`).
 
 Decision rules (see `_decide`):
-  - no evidence retrieved at all -> escalate (never guess from parametric
-    knowledge just because retrieval came back empty)
+  - no evidence retrieved at all -> escalate
   - critic found nothing -> accept
-  - critic found problems and a revision is still available -> revise
-  - critic found problems and the revision budget is exhausted -> escalate
+  - critic found problems, revision available -> revise
+  - critic found problems, revision budget exhausted -> escalate
 """
 
 from __future__ import annotations

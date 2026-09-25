@@ -17,7 +17,7 @@ from verification.retrieval.vector_store import ChromaRetriever  # noqa: E402
 CORPUS_DIR = Path(__file__).resolve().parents[1] / "eval" / "dataset" / "corpus"
 
 
-def main() -> None: # -> None: means the function does not return any value
+def main() -> None:
     chunks = load_corpus_dir(CORPUS_DIR)
     if not chunks:
         print(f"No .txt/.md files found in {CORPUS_DIR} — nothing to index.")

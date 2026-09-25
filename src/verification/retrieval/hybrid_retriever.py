@@ -1,50 +1,18 @@
 """Hybrid retriever: fuses ChromaRetriever's dense results with
-BM25Retriever's sparse results via Reciprocal Rank Fusion (RRF), rather
-than combining raw scores directly.
+BM25Retriever's sparse results via Reciprocal Rank Fusion (RRF) rather
+than a weighted score sum — BM25 and cosine similarity live on
+incomparable scales, and RRF only needs each retriever's RANK,
+`1/(k+rank)` summed across retrievers, avoiding a normalization constant
+that would silently go stale as either scorer changes.
 
-RRF instead of a weighted score sum: BM25 scores and cosine similarity live
-on completely different, incomparable scales — BM25 is unbounded and
-corpus-size-dependent, while the dense score here is 1/(1 + L2 distance),
-roughly 0-1. Averaging or weighting two incomparable scales requires a
-normalization constant that would silently go stale the moment either
-underlying scorer changes. RRF sidesteps this: it only uses each
-retriever's RANK position, `1 / (k + rank)` for a small constant k, summed
-across retrievers. Simple, one well-understood parameter, and what most
-production hybrid-search systems use for exactly this reason.
-
-Why this exists at all: dense embeddings pool a whole chunk into one
-vector, so a fact can lose a similarity race to an unrelated chunk that
-just happens to share more surface-level vocabulary structure — this is
-the exact, diagnosed bug in corpus_loader.py's module docstring (a chunk
-ranking 29th of 46 for a query it directly answered). BM25 has no such
-failure mode for exact term matches. The two retrievers fail differently,
-which is the actual argument for combining them, not a claim that either
-one is better in general.
-
-IMPORTANT interaction with confidence.py, and a real bug this file used to
-have: `get_engineered_confidence` averages `retrieved_chunks[i]["score"]`
-for cited chunks and treats it as a genuinely graded, roughly 0-1
-similarity signal — calibrated against the dense retriever's
-`1/(1+distance)` scale, which the project's headline calibration result
-(ECE ~0.05-0.09 across three runs) was measured against. An earlier version
-of this file discarded each chunk's real score and replaced it uniformly
-with a rank-derived `1/(1+rank)` pseudo-similarity. That seemed safe (same
-rough scale) but wasn't: `1/(1+rank)` is EXACTLY 1.0 for every rank-0
-result regardless of how strong the match actually was, collapsing genuine
-gradation into a few fixed values. Measured directly, this pinned 15 of 50
-eval items at exactly 1.0 engineered confidence — several of which were
-wrong — which is worse calibration (ECE 0.23) than the naive verbalized
-baseline it was supposed to beat.
-
-The fix: keep each chunk's REAL score whenever one exists on the scale
-confidence.py expects. Dense results are processed first and `chunk_by_id`
-uses `setdefault`, so a chunk found by both retrievers already retains its
-genuine dense cosine-similarity score internally — the bug was in the
-final result construction, which overwrote that good value with the
-synthetic one regardless. The rank-derived `1/(1+rank)` estimate is now
-used ONLY as a fallback for chunks BM25 found that dense did not surface at
-all, since BM25's own score is unbounded and corpus-size-dependent and has
-no directly comparable meaning on the 0-1 scale confidence.py needs.
+A real bug this file used to have: an earlier version replaced every
+chunk's real score with a rank-derived `1/(1+rank)` estimate, which is
+EXACTLY 1.0 for every rank-0 result regardless of match strength — this
+pinned 15 of 50 eval items at 1.0 engineered confidence (several wrong),
+regressing calibration to ECE 0.233. Fixed by keeping each chunk's real
+dense score whenever one exists (`confidence.py` depends on that scale)
+and using the rank-derived estimate only as a fallback for BM25-only
+chunks, which have no comparable real score.
 """
 
 from __future__ import annotations
