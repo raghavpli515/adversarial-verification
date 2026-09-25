@@ -18,9 +18,16 @@ mlruns/
 mlartifacts/
 mlflow.db
 
-# Eval outputs (results checked in selectively, not the raw run dumps)
+# Eval outputs (results checked in selectively, not the raw run dumps) —
+# these are the exact 6 runs (2 batches of 3) the README's Results table is
+# computed from; everything else in results/ is exploratory/diagnostic.
 results/*.json
-!results/.gitkeep
+!results/eval_run_20260905-134537.json
+!results/eval_run_20260905-140207.json
+!results/eval_run_20260905-143258.json
+!results/eval_run_20260915-191543.json
+!results/eval_run_20260919-112206.json
+!results/eval_run_20260924-115424.json
 
 # OS / editor
 .DS_Store
