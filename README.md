@@ -2,7 +2,7 @@
 
 A multi-agent system that verifies its own answers before returning them, instead of trusting a single LLM pass. Three agents — **Generator**, **Critic**, **Coordinator** — orchestrated with LangGraph, backed by retrieval over a curated corpus (Apollo program mission data), with an eval harness that measures whether the verification loop actually reduces unsupported claims and whether the system's stated confidence is honestly calibrated.
 
-Built as a companion piece to a [multimodal trust-aware behavioral intelligence system](#) — the shared thread across both is **measurable reliability**, not just "the model works on my examples."
+Built as a companion piece to a [multimodal trust-aware behavioral intelligence system](https://github.com/raghavpli515/Agentic-multimodal-behavioral-consistency-analysis) — the shared thread across both is **measurable reliability**, not just "the model works on my examples."
 
 🎥 **[Watch a demo walkthrough](https://youtu.be/bDHBv1_jPOI)** — Generator → Critic → Coordinator in action, critic findings, and both confidence signals side by side.
 
